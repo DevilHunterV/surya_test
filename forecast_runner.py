@@ -84,5 +84,5 @@ if __name__ == "__main__":
         except Exception as e:
             print("Error:", e)
         print("Waiting 10 minutes...")
-        time.sleep(600)
+        time.sleep(30)
 

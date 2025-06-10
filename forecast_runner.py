@@ -39,10 +39,12 @@ def process_forecasts():
     print("Fetching unprocessed user inputs...")
     response = supabase.table("UserInputs").select("*").eq("processed", False).execute()
     records = response.data
+    print("✅ Raw Supabase response:", records)
 
     if not records:
-        print("No new inputs found.")
+        print("❌ No rows found in Supabase (userinputs).")
         return
+
 
     for row in records:
         try:

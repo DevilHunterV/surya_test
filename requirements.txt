@@ -6,3 +6,4 @@ statsmodels
 pmdarima
 scikit-learn
 supabase
+flask

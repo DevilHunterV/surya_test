@@ -37,7 +37,7 @@ def start_flask():
 # === Forecasting Function ===
 def process_forecasts():
     print("Fetching unprocessed user inputs...")
-    response = supabase.table("userinputs").select("*").eq("processed", False).execute()
+    response = supabase.table("UserInputs").select("*").eq("processed", False).execute()
     records = response.data
 
     if not records:
@@ -93,7 +93,7 @@ def process_forecasts():
                 for idx, val in future_values.items()
             ]
             supabase.table("forecast_results").insert(forecast_records).execute()
-            supabase.table("userinputs").update({'processed': True}).eq("id", row["id"]).execute()
+            supabase.table("UserInputs").update({'processed': True}).eq("id", row["id"]).execute()
 
             print(f"✅ Forecast stored for {currency}")
 
@@ -113,4 +113,4 @@ if __name__ == "__main__":
         except Exception as e:
             print("❌ Forecasting loop failed:", e)
         print("Sleeping for 10 minutes...\n")
-        time.sleep(600)  # Wait 10 minutes
+        time.sleep(30)  # Wait 10 minutes

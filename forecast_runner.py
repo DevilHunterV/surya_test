@@ -9,6 +9,8 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error
 from statsmodels.tsa.arima.model import ARIMA
 from pmdarima.arima import auto_arima
 from supabase import create_client, Client
+from threading import Thread
+from flask import Flask
 import os
 
 # === Load Environment Variables from Render Dashboard ===
@@ -76,13 +78,29 @@ def process_forecasts():
         print(f"Forecast stored and input marked as processed for {currency}.")
 
 # === Background Loop ===
+app = Flask(__name__)
+
+@app.route("/")
+def home():
+    return "Forecast worker is running."
+
+def start_flask():
+    app.run(host="0.0.0.0", port=10000)
+
 if __name__ == "__main__":
+    # Start the Flask server in a separate thread
+    Thread(target=start_flask).start()
+
+    # Your looping job continues as usual
     while True:
         print("Running forecast job...")
         try:
             process_forecasts()
         except Exception as e:
             print("Error:", e)
-        print("Waiting 10 minutes...")
         time.sleep(30)
+
+
+
+
 

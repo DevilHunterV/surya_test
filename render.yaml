@@ -1,0 +1,8 @@
+services:
+  - type: worker
+    name: currency-forecast-worker
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: bash start.sh
+    plan: free
+    schedule: '*/15 * * * *'  # every 15 minutes

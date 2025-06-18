@@ -1,118 +1,95 @@
-import os
-import time
 import pandas as pd
 import numpy as np
-import requests
+import matplotlib.pyplot as plt
 import warnings
-from flask import Flask
-from threading import Thread
+import requests
 from datetime import datetime
-from statsmodels.tsa.arima.model import ARIMA
 from sklearn.metrics import mean_absolute_error, mean_squared_error
+from statsmodels.tsa.arima.model import ARIMA
 from supabase import create_client, Client
 
-# === Setup ===
-print("=== Script started ===")
-
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-API_KEY = os.getenv("API_KEY")
-
-if not SUPABASE_URL or not SUPABASE_KEY or not API_KEY:
-    raise ValueError("Missing environment variables: check SUPABASE_URL, SUPABASE_KEY, or API_KEY")
-
+# === Configuration ===
+API_KEY = "T0GogrTEb62VPtatnlp7ga1xXUpEvNjq"
+SUPABASE_URL = "https://dletqrcbggnevurxbstz.supabase.co"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRsZXRxcmNiZ2duZXZ1cnhic3R6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg4NzkzOTMsImV4cCI6MjA2NDQ1NTM5M30.HfEpJ5b7lZejR4dhYt_DWap6ia-jBBJZZVjEkLPUr8E"
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 warnings.filterwarnings('ignore')
 
-# === Flask Server for Render Port Binding ===
-app = Flask(__name__)
+# === Fetch new unprocessed inputs ===
+response = supabase.table("UserInputs").select("*").eq("processed", False).execute()
+records = response.data
 
-@app.route("/")
-def home():
-    return "Forecast service is running!"
-
-def start_flask():
-    app.run(host="0.0.0.0", port=10000)
-
-# === Forecasting Function ===
-def process_forecasts():
-    print("Fetching unprocessed user inputs...")
-    response = supabase.table("UserInputs").select("*").eq("processed", False).execute()
-    records = response.data
-    print("✅ Raw Supabase response:", records)
-
-    if not records:
-        print("❌ No rows found in Supabase (userinputs).")
-        return
-
-
+if not records:
+    print("No new inputs found.")
+else:
     for row in records:
-        try:
-            currency = row["currency"]
-            start = row["startdate"]
-            end = row["enddate"]
-            print(f"Processing: {currency} from {start} to {end}")
+        currency = row['currency']
+        start = row['startdate']
+        end = row['enddate']
+        base = currency[:3]
+        symbol = currency[3:]
 
-            url = (
-                f"https://marketdata.tradermade.com/api/v1/pandasDF?"
-                f"currency={currency}&api_key={API_KEY}&start_date={start}&end_date={end}&"
-                f"format=records&fields=ohlc"
-            )
-            response = requests.get(url)
-            if response.status_code != 200:
-                print(f"Failed to fetch data for {currency}: {response.status_code}")
-                continue
+        print(f"Processing: {currency} from {start} to {end}")
 
-            data = pd.DataFrame(response.json())
-            if data.empty:
-                print(f"No data returned for {currency}. Skipping...")
-                continue
+        # === New API Call Format (e.g., exchangerate.host or similar) ===
+        url = f"https://api.apilayer.com/exchangerates_data/timeseries?start_date={start}&end_date={end}&base={base}&symbols={symbol}"
+        headers = {"apikey": API_KEY}
+        response = requests.get(url, headers=headers)
+        if response.status_code != 200:
+            print(f"Failed to fetch data for {currency}. Skipping...")
+            continue
 
-            data['Average'] = data.select_dtypes(include='number').mean(axis=1)
-            data['diff'] = data['Average'].diff()
-            data = data.drop(columns=['close', 'high', 'low', 'open'], errors='ignore')
-            data['date'] = pd.to_datetime(data['date'])
-            data.set_index('date', inplace=True)
+        raw_data = response.json()
+        if 'rates' not in raw_data:
+            print(f"No rate data returned. Skipping...")
+            continue
 
-            curr_val = data['Average'].iloc[-1]
-            split_index = int(0.2 * len(data) + 1)
-            train = data['diff'].iloc[split_index:].dropna()
-            test = data['diff'].iloc[:split_index].dropna()
+        # === Convert rates to DataFrame ===
+        df = pd.DataFrame.from_dict(raw_data['rates'], orient='index')
+        df.columns = ['Average']
+        df.index = pd.to_datetime(df.index)
+        df.sort_index(inplace=True)
+        df['diff'] = df['Average'].diff()
 
-            if train.empty or test.empty:
-                print(f"Not enough data for {currency}. Skipping...")
-                continue
+        curr_val = df['Average'].iloc[-1]
+        split_index = int(0.2 * len(df) + 1)
+        train = df['diff'].iloc[split_index:].dropna()
+        test = df['diff'].iloc[:split_index].dropna()
 
-            model = ARIMA(train, order=(1, 0, 1))
-            model_fit = model.fit()
-            predictions = model_fit.predict(start=len(train), end=len(train) + len(test) - 1)
-            future_values = curr_val + predictions.cumsum()
+        if train.empty or test.empty:
+            print("Not enough data. Skipping...")
+            continue
 
-            # === Overwrite Forecast in Supabase ===
-            supabase.table("forecast_results").delete().eq("currency", currency).execute()
-            forecast_records = [
-                {"currency": currency, "date": idx.strftime('%Y-%m-%d'), "value": float(val)}
-                for idx, val in future_values.items()
-            ]
-            supabase.table("forecast_results").insert(forecast_records).execute()
-            supabase.table("UserInputs").update({'processed': True}).eq("id", row["id"]).execute()
+        # === Fit ARIMA ===
+        model = ARIMA(train, order=(2, 0, 4))
+        model_fit = model.fit()
+        predictions = model_fit.predict(start=len(train), end=len(train) + len(test) - 1)
 
-            print(f"✅ Forecast stored for {currency}")
+        # === Evaluate ===
+        mae = mean_absolute_error(test, predictions)
+        mse = mean_squared_error(test, predictions)
+        rmse = np.sqrt(mse)
+        print(f"MAE: {mae}, MSE: {mse}, RMSE: {rmse}")
 
-        except Exception as e:
-            print(f"Error while processing {row.get('currency', 'unknown')}: {e}")
+        # === Forecast ===
+        future = curr_val + predictions.cumsum()
 
-# === Run Loop + Flask Server ===
-if __name__ == "__main__":
-    # Start web server to keep Render service alive
-    Thread(target=start_flask).start()
+        # === Plot Forecast ===
+        plt.plot(df['Average'], label='Historical')
+        plt.plot(future, label='Forecast')
+        plt.title(f"ARIMA Forecast: {currency}")
+        plt.legend()
+        plt.tight_layout()
+        plt.show()
 
-    # Continuous polling loop
-    while True:
-        print("Running forecast job...")
-        try:
-            process_forecasts()
-        except Exception as e:
-            print("❌ Forecasting loop failed:", e)
-        print("Sleeping for 10 minutes...\n")
-        time.sleep(30)  # Wait 10 minutes
+        # === Overwrite Forecast in Supabase ===
+        supabase.table("Forecast_Results").delete().eq("currency", currency).execute()
+        forecast_records = [
+            {"currency": currency, "date": idx.strftime('%Y-%m-%d'), "value": float(val)}
+            for idx, val in future.items()
+        ]
+        supabase.table("Forecast_Results").insert(forecast_records).execute()
+
+        # === Mark Input as Processed ===
+        supabase.table("UserInputs").update({'processed': True}).eq("id", row['id']).execute()
+        print(f"Forecast stored and input marked as processed.")

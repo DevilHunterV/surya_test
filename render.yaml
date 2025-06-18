@@ -1,11 +1,9 @@
 services:
   - type: worker
-    name: forex-forecast-worker
-    runtime: python
-    buildCommand: |
-      pip install --upgrade pip
-      pip install --upgrade setuptools wheel
-      pip install -r requirements.txt
-    startCommand: python forecast_runner.py
+    name: currency-forecast-worker
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: bash start.sh
     plan: free
+    schedule: '*/15 * * * *'  # every 15 minutes
 

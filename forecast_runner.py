@@ -9,9 +9,9 @@ from statsmodels.tsa.arima.model import ARIMA
 from supabase import create_client, Client
 
 # === Configuration ===
-API_KEY = "T0GogrTEb62VPtatnlp7ga1xXUpEvNjq"
+# API_KEY = "T0GogrTEb62VPtatnlp7ga1xXUpEvNjq"
 SUPABASE_URL = "https://dletqrcbggnevurxbstz.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRsZXRxcmNiZ2duZXZ1cnhic3R6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg4NzkzOTMsImV4cCI6MjA2NDQ1NTM5M30.HfEpJ5b7lZejR4dhYt_DWap6ia-jBBJZZVjEkLPUr8E"
+# SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRsZXRxcmNiZ2duZXZ1cnhic3R6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg4NzkzOTMsImV4cCI6MjA2NDQ1NTM5M30.HfEpJ5b7lZejR4dhYt_DWap6ia-jBBJZZVjEkLPUr8E"
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 warnings.filterwarnings('ignore')
 

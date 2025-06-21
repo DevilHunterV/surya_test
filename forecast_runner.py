@@ -7,8 +7,11 @@ from datetime import datetime
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 from statsmodels.tsa.arima.model import ARIMA
 from supabase import create_client, Client
+import os
 
 # === Configuration ===
+API_KEY = os.getenv("API_KEY")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 # API_KEY = "T0GogrTEb62VPtatnlp7ga1xXUpEvNjq"
 SUPABASE_URL = "https://dletqrcbggnevurxbstz.supabase.co"
 # SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRsZXRxcmNiZ2duZXZ1cnhic3R6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg4NzkzOTMsImV4cCI6MjA2NDQ1NTM5M30.HfEpJ5b7lZejR4dhYt_DWap6ia-jBBJZZVjEkLPUr8E"

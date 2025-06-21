@@ -2,7 +2,7 @@ services:
   - type: web
     name: surya-test
     runtime: python
-    buildCommand: "pip install -r requirements.txt"
+    buildCommand: "pip install --upgrade pip setuptools wheel && pip install -r requirements.txt"
     startCommand: "python forecast_runner.py"
     autoDeploy: true
     envVars:
